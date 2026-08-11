@@ -19,7 +19,7 @@
   - baseline: [`evidence/validate_logs_baseline.txt`](evidence/validate_logs_baseline.txt)
   - cuối: [`evidence/validate_logs_final.txt`](evidence/validate_logs_final.txt)
   - 144 log record, 39 correlation ID duy nhất, 0 PII leak, 0 record thiếu field bắt buộc, 0 record thiếu enrichment.
-- Tổng số traces: **59** trên Langfuse (project `My Project`), `auth_check: True`, `/health` trả `tracing_enabled: true`. Trong đó 29 trace có `prompt_source=langfuse` (sau khi tạo prompt) và 30 trace đầu có `prompt_source=local-fallback` (trước khi tạo prompt). Yêu cầu ≥ 10 traces đã đạt.
+- Tổng số traces: **69** trên Langfuse (project `My Project`), `auth_check: True`, `/health` trả `tracing_enabled: true` — ảnh [`evidence/trace_list.png`](evidence/trace_list.png). Phân bố `prompt_source`: 38 `langfuse` (sau khi prompt được tạo), 30 `local-fallback` (trước đó), và 1 trace không có metadata — đó là request lỗi, `agent.run` ném exception trước khi kịp gọi `update_current_trace`. Yêu cầu ≥ 10 traces đã đạt.
 - Số PII leak còn lại: **0** (theo detector độc lập trong `scripts/validate_logs.py`).
 - Link/đường dẫn dashboard: **[`evidence/dashboard.html`](evidence/dashboard.html)** — mở bằng trình duyệt. Dựng bằng [`scripts/build_dashboard.py`](../scripts/build_dashboard.py) từ `data/logs.jsonl`. Contract tại [`config/dashboard.yaml`](../config/dashboard.yaml); kết quả validator tại [`evidence/validate_dashboard.txt`](evidence/validate_dashboard.txt) — `HỢP LỆ: 6/6 panel`.
 
@@ -37,7 +37,7 @@ Số liệu tổng trên toàn bộ log đã ghi: 35 request nhận / 34 thành 
   2. `scrub_event` quét **đệ quy mọi giá trị chuỗi**, không chỉ `payload`, vì PII còn có thể lọt vào exception message hay field nhóm thêm sau này. Các khoá hệ thống (`ts`, `level`, `correlation_id`, `user_id_hash`, `service`) được loại trừ để regex không cắt nát timestamp.
   3. `hash_user_id` thêm tiền tố `uh_`: một digest 12 ký tự hex có thể ngẫu nhiên toàn chữ số và bị chính detector CCCD (`\b\d{12}\b`) báo nhầm là leak.
 
-- **Evidence trace waterfall**: trace `76b1fe4d75a4364c7575064c575b4974` (session `pv-baseline`). Ảnh waterfall: _(chụp từ Langfuse UI — điền)_
+- **Evidence trace waterfall**: trace `76b1fe4d75a4364c7575064c575b4974` (session `pv-baseline`) — ảnh [`evidence/trace_waterfall.png`](evidence/trace_waterfall.png). Danh sách traces: [`evidence/trace_list.png`](evidence/trace_list.png).
 
 - **Giải thích một span đáng chú ý**: span `retrieval_completed` (`tool_name=mock_rag.retrieve`). Nhóm bổ sung span này vì latency tổng không trả lời được câu hỏi "chậm ở đâu". Trong sự cố, span này = 2500 ms trên **cả 10** request bị ảnh hưởng trong khi span `llm_completed` giữ nguyên 150–164 ms — chính con số này khoanh vùng root cause chỉ trong một truy vấn log. Ở trạng thái bình thường span này = 0 ms.
 
@@ -59,7 +59,10 @@ Evidence đầy đủ: [`evidence/prompt_versioning.txt`](evidence/prompt_versio
 
 Cả bốn dùng **cùng một input**: `"Explain why metrics traces and logs work together."` (feature `monitoring`).
 
-- **Bằng chứng đổi label / rollback**: hai dòng cuối bảng, đọc theo thứ tự thời gian. Cùng label `production`, hai trace, hai version khác nhau: chuyển `production` sang v2 → trace ghi `prompt_version=2`; rollback `production` về v1 → trace ghi `prompt_version=1`. Không có dòng code nào thay đổi giữa hai lần chạy — chỉ label trên Langfuse. Ảnh chụp UI trước/sau: _(điền)_
+- **Bằng chứng đổi label / rollback**: hai dòng cuối bảng, đọc theo thứ tự thời gian. Cùng label `production`, hai trace, hai version khác nhau: chuyển `production` sang v2 → trace ghi `prompt_version=2`; rollback `production` về v1 → trace ghi `prompt_version=1`. Không có dòng code nào thay đổi giữa hai lần chạy — chỉ label trên Langfuse. Ảnh: [`evidence/prompt_rollback.png`](evidence/prompt_rollback.png).
+
+- **Ảnh hai prompt version**: [`evidence/prompt_version1.png`](evidence/prompt_version1.png) và [`evidence/prompt_version2.png`](evidence/prompt_version2.png). Mỗi ảnh đều thấy cột version bên trái (v1 `production`+`baseline`, v2 `latest`+`candidate`) và nội dung prompt bên phải — v2 có thêm dòng ràng buộc độ dài, còn cả hai giữ đủ ba biến `{{feature}}`, `{{docs}}`, `{{message}}` theo contract.
+- **Ảnh trace gắn đúng version/label**: [`evidence/trace_prompt_metadata.png`](evidence/trace_prompt_metadata.png) — tab Metadata của trace, đọc được `prompt_name`, `prompt_label`, `prompt_version`, `prompt_source=langfuse`.
 
 ### Hai điều học được từ phần này
 
@@ -77,7 +80,7 @@ Cả bốn dùng **cùng một input**: `"Explain why metrics traces and logs wo
 ## 5. Dashboard, SLO và alerts
 
 - Kết quả `validate_dashboard.py`: `HỢP LỆ: 6/6 panel có trong dashboard contract.` — [`evidence/validate_dashboard.txt`](evidence/validate_dashboard.txt)
-- Evidence dashboard: **[`evidence/dashboard.html`](evidence/dashboard.html)**, dựng bằng [`scripts/build_dashboard.py`](../scripts/build_dashboard.py).
+- Evidence dashboard: **[`evidence/dashboard.html`](evidence/dashboard.html)** (bản chạy được) và ảnh chụp [`evidence/dashboard.png`](evidence/dashboard.png), dựng bằng [`scripts/build_dashboard.py`](../scripts/build_dashboard.py).
 
   Điểm quan trọng của cách dựng này: script **đọc tên panel, đơn vị, threshold và `time_range_minutes` trực tiếp từ `config/dashboard.yaml`**, không hard-code. Nên dashboard không thể lệch contract mà validator vẫn báo hợp lệ — hai thứ dùng chung một nguồn sự thật. Trang hiển thị đủ time range (60 phút), đơn vị từng panel, threshold/SLO line dạng đường đứt, và một chip trạng thái đạt/vi phạm cho mỗi panel.
 
@@ -185,28 +188,39 @@ Lời gọi Langfuse `get_prompt` cũng nằm trên cùng đường chặn đó,
 
 ## 7. Đóng góp cá nhân
 
-> ⚠️ Bảng này **phải khớp với Git history thật của từng người**. RUBRIC B2 (20 điểm) chấm bằng cách đối chiếu khai báo ở đây với commit/PR kiểm tra được, nên mỗi người cần tự commit phần việc của mình.
+Bảng dưới ghi theo **nội dung commit thật**, không theo phân vai dự kiến — vì hai thứ đã lệch nhau trong lúc merge (xem ghi chú cuối mục). Repo: `https://github.com/DQHuyyyyy/Day13-K4-Observability-Three`
 
-| Thành viên | Phần việc | Commit/PR | Điều đã học |
+| Thành viên | Phần việc (theo đúng file trong commit) | Commit | Điều đã học |
 |---|---|---|---|
-| Huy | `app/middleware.py` (correlation ID, contextvars, response header), `app/logging_config.py` (đăng ký `scrub_event`, quét đệ quy), `app/main.py` (enrichment), `app/pii.py` (passport/địa chỉ VN/số tài khoản, tiền tố hash), `tests/conftest.py` | _(điền)_ | _(điền)_ |
-| Đạt | Cấu hình Langfuse, prompt v1/v2, label & rollback, `flush_tracing()` trong `app/tracing.py` + shutdown handler | _(điền)_ | _(điền)_ |
-| Duy | `scripts/build_dashboard.py` (dựng 6 panel), `config/slo.yaml`, `config/alert_rules.yaml`, `docs/alerts.md`, span timing trong `app/agent.py`, `error_rate_pct` trong `app/metrics.py` + `tests/test_metrics.py`, điều tra challenge | _(điền)_ | _(điền)_ |
+| **Huy**<br/>`Quang Huy` | **Logging, correlation ID và PII.** `app/middleware.py` (sinh/nhận correlation ID, clear + bind contextvars, response header), `app/logging_config.py` (đăng ký `scrub_event`, quét đệ quy), `app/pii.py` (pattern hộ chiếu/địa chỉ VN/số tài khoản, tiền tố `uh_`), `app/metrics.py`. Sau đó merge nhánh `dat` và `duy`, và bổ sung `app/agent.py` + `app/main.py`. | [`a59257b`](https://github.com/DQHuyyyyy/Day13-K4-Observability-Three/commit/a59257b3acc93237726379c4fb54f31112f62486) Check Point 1<br/>[`17ebfae`](https://github.com/DQHuyyyyy/Day13-K4-Observability-Three/commit/17ebfae) merge branch dat<br/>[`15f4bd7`](https://github.com/DQHuyyyyy/Day13-K4-Observability-Three/commit/15f4bd7) merge Duy<br/>[`375ec97`](https://github.com/DQHuyyyyy/Day13-K4-Observability-Three/commit/375ec971ec08fc45cf3035a9280e65674fb3b34a) add function | Thứ tự processor trong pipeline log quyết định tất cả: `scrub_event` phải đứng **sau** `format_exc_info` để quét được cả traceback, và **trước** bước ghi file — đặt sau bước ghi thì dữ liệu trên đĩa đã lộ và không thu hồi được. Học thêm rằng chính bộ detector PII có thể báo nhầm: digest 12 ký tự hex có thể ngẫu nhiên toàn chữ số và khớp regex CCCD, nên phải thêm tiền tố `uh_` để phá `\b`. |
+| **Đạt**<br/>`nguyentiendat` | **Tracing, prompt versioning, SLO/alert và dashboard.** `app/tracing.py` (`flush_tracing()`), shutdown handler trong `app/main.py`, cấu hình Langfuse + tạo prompt `day13-chat` v1/v2 và rollback label. Kèm `config/slo.yaml`, `config/alert_rules.yaml`, `docs/alerts.md`, `docs/blueprint-template.md`, `scripts/build_dashboard.py` và `submission/REPORT.md`. Sửa lỗi nhân đôi `app/main.py`. | [`d0aeabf`](https://github.com/DQHuyyyyy/Day13-K4-Observability-Three/commit/d0aeabf891a95b2bbdde1820aacd28f02f00cb2a) checkpoint 2<br/>[`9ea2943`](https://github.com/DQHuyyyyy/Day13-K4-Observability-Three/commit/9ea294328248a2bd26bd11e29f4730fb71be3e67) fix main.py<br/>[`d913c83`](https://github.com/DQHuyyyyy/Day13-K4-Observability-Three/commit/d913c83d7f93004deb8f47dce324e590fb8a76c3) dashboard 6 panel | Một hệ thống quan sát phải **trung thực về chính nó**. Khi prompt chưa tồn tại, app ghi `prompt_source=local-fallback` thay vì giả vờ `version=1` — nhờ vậy phát hiện ngay sau 30 trace rằng prompt chưa được tạo. Ngược lại, thứ *không* được ghi lại thì không tồn tại: 4 trace đầu mất trắng vì SDK gửi theo batch mà process dừng trước khi flush, tạo một khoảng mù im lặng đúng lúc restart. |
+| **Duy**<br/>`Elemental-Sight` | **Span timing và error rate.** Span log `retrieval_completed` / `llm_completed` trong `app/agent.py`, đưa `retrieval_ms` / `llm_ms` vào `AgentResult` và vào payload `response_sent` của `app/main.py`, hàm `error_rate_pct()` trong `app/metrics.py` cùng `tests/test_metrics.py`. | [`49c7e9c`](https://github.com/DQHuyyyyy/Day13-K4-Observability-Three/commit/49c7e9c3a60b9a3e779fad9d1b7f7ec90a47e91d) Hoàn thiện CP3<br/>[`0dae878`](https://github.com/DQHuyyyyy/Day13-K4-Observability-Three/commit/0dae878ba0165d156a1738233345004e4c08d803) Update Checkpoint 3 | Latency tổng chỉ nói “chậm”, span mới nói “chậm ở đâu”: `retrieval_ms=2500` so với `llm_ms=150` khoanh vùng root cause chỉ trong một truy vấn log. Về metric, mẫu số quan trọng hơn tử số — `error_rate_pct` phải chia cho **tổng request đã nhận**, vì `TRAFFIC` chỉ tăng ở cuối `LabAgent.run` nên request lỗi không bao giờ được đếm; lấy `TRAFFIC` làm mẫu số sẽ chia cho 0 đúng lúc mọi request đều hỏng. |
 
-## 8. Còn thiếu để nộp
+### Ghi chú về sự lệch giữa phân vai và commit
 
-1. **Ảnh chụp từ Langfuse UI** — phần này bắt buộc phải chụp tay vì nằm ngoài repo:
-   - danh sách traces (≥ 10; hiện có 59);
-   - một trace waterfall — dùng trace `76b1fe4d75a4364c7575064c575b4974`;
-   - danh sách hai prompt version của `day13-chat`;
-   - màn hình trước/sau khi chuyển label `production` giữa v2 và v1.
+Phân vai ở mục 1 và nội dung commit không trùng khớp hoàn toàn: `config/slo.yaml`, `config/alert_rules.yaml`, `docs/alerts.md` và `scripts/build_dashboard.py` thuộc mảng Dashboard/SLO/Alert của Duy nhưng nằm trong commit của Đạt (`d0aeabf`, `d913c83`), do thứ tự merge giữa các nhánh. Bảng trên ghi theo Git để khớp yêu cầu đối chiếu của RUBRIC B2; ai trình bày phần nào lúc demo thì theo phân vai ở mục 1.
 
-   Đặt trong `submission/evidence/` và dẫn lại bằng đường dẫn tương đối ở mục 3 và mục 4.
+Một commit đáng rút kinh nghiệm: `375ec97` đặt tên “add function” nhưng thực chất dán trùng toàn bộ `app/main.py` (256 dòng = 128 dòng lặp hai lần), khiến `from __future__ import annotations` xuất hiện lại ở dòng 129 và app không import được — toàn bộ test hỏng ngay ở bước collection. Validator không bắt được lỗi này vì nó không chạy app; chỉ `pytest` và code review mới thấy. Đã sửa ở `9ea2943`.
 
-2. **Ảnh dashboard** — mở [`evidence/dashboard.html`](evidence/dashboard.html) bằng trình duyệt rồi chụp. Trang đã hiển thị sẵn tên panel, time range, đơn vị và threshold line theo yêu cầu của `docs/DASHBOARD_SETUP.md`. Muốn dựng lại sau khi có log mới:
+## 8. Danh mục evidence
 
-   ```bash
-   python scripts/build_dashboard.py
-   ```
+Đầy đủ. Chi tiết cách thu thập từng file nằm ở [`evidence/README.md`](evidence/README.md).
 
-3. **Điền mục 7** — commit/PR và điều đã học của từng người, và **commit SHA cuối** ở mục 1.
+| File | Nội dung |
+|---|---|
+| [`validate_logs_baseline.txt`](evidence/validate_logs_baseline.txt) | 30/100 ở commit gốc |
+| [`validate_logs_final.txt`](evidence/validate_logs_final.txt) | 100/100 · 144 record · 39 correlation ID · 0 PII leak |
+| [`validate_dashboard.txt`](evidence/validate_dashboard.txt) | `HỢP LỆ: 6/6 panel` |
+| [`log_correlation_id.json`](evidence/log_correlation_id.json) | Log có correlation ID và đủ enrichment |
+| [`log_pii_redacted.json`](evidence/log_pii_redacted.json) | Email / số điện thoại / số thẻ đã `[REDACTED_*]` |
+| [`log_request_failed.json`](evidence/log_request_failed.json) | Log lỗi làm error rate chạm 2.86% |
+| [`challenge_investigation.txt`](evidence/challenge_investigation.txt) | Phân rã latency theo span, percentile ba pha |
+| [`prompt_versioning.txt`](evidence/prompt_versioning.txt) | 4 trace ID kèm label / version / source |
+| [`dashboard.html`](evidence/dashboard.html) · [`dashboard.png`](evidence/dashboard.png) | Dashboard 6 panel, bản chạy được và ảnh chụp |
+| [`trace_list.png`](evidence/trace_list.png) | Danh sách traces — 11 dòng hiển thị, `Total ≈ 69`, có cột Metadata |
+| [`trace_waterfall.png`](evidence/trace_waterfall.png) | Waterfall trace `76b1fe4d…` — span cha 1.15s + generation con |
+| [`trace_prompt_metadata.png`](evidence/trace_prompt_metadata.png) | `prompt_name` / `prompt_label` / `prompt_version` / `prompt_source=langfuse` |
+| [`prompt_version1.png`](evidence/prompt_version1.png) · [`prompt_version2.png`](evidence/prompt_version2.png) | Hai version của `day13-chat` kèm label và nội dung |
+| [`prompt_rollback.png`](evidence/prompt_rollback.png) | Label `production` ở version 2 — trạng thái trước rollback |
+
+Việc duy nhất còn lại: điền **commit SHA cuối** ở mục 1 bằng `git rev-parse HEAD`, và điền cột *Điều đã học* ở mục 7 nếu muốn viết lại theo lời của mình.
