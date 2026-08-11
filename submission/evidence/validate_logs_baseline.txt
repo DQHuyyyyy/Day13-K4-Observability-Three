@@ -1,0 +1,22 @@
+Baseline Checkpoint 0 — chay tren commit goc 5ba6472 (truoc khi hoan thien TODO).
+Cach tao: git worktree add <tmp> HEAD, chay uvicorn tren port 8001 va
+scripts/load_test.py, sau do scripts/validate_logs.py.
+
+--- Lab Verification Results ---
+Total log records analyzed: 21
+Records with missing required fields: 20
+Records with missing enrichment (context): 20
+Unique correlation IDs found: 0
+Potential PII leaks detected: 0
+
+--- Grading Scorecard (Estimates) ---
+- [FAILED] Missing required fields (ts, level, etc.)
+- [FAILED] Correlation ID propagation (less than 2 unique IDs)
+- [FAILED] Log enrichment (missing user_id_hash, etc.)
++ [PASSED] PII scrubbing
+
+Estimated Score: 30/100
+
+Ghi chu: PII scrubbing "PASSED" ngay o baseline vi summarize_text() da scrub
+message_preview truoc khi log. Processor scrub_event van chua duoc dang ky, nen
+moi field chuoi khac (exception message, field tuy bien) van chua duoc bao ve.
