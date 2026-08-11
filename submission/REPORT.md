@@ -4,7 +4,7 @@
 
 - Tên nhóm: Three
 - Repository URL: https://github.com/DQHuyyyyy/Day13-K4-Observability-Three
-- Commit SHA cuối: _(điền sau khi commit)_
+- Commit SHA cuối: `1260e306fed6624825cf06f34bf5c9573b3ac2a2` — commit chứa đầy đủ source và evidence. Nếu còn commit thêm sau dòng này, lấy giá trị mới bằng `git rev-parse HEAD` và nộp giá trị đó trên Codelabs.
 - Thành viên và vai trò:
 
 | Thành viên | Vai trò |
