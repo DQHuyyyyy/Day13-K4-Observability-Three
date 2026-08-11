@@ -4,11 +4,14 @@ import time
 from dataclasses import dataclass
 
 from . import metrics
+from .logging_config import get_logger
 from .mock_llm import FakeLLM
 from .mock_rag import retrieve
 from .pii import hash_user_id, summarize_text
 from .prompt_management import resolve_prompt
 from .tracing import get_langfuse_client, observe, tracing_enabled
+
+log = get_logger()
 
 
 @dataclass
@@ -19,6 +22,10 @@ class AgentResult:
     tokens_out: int
     cost_usd: float
     quality_score: float
+    # Latency tổng được tách theo từng bước để một dòng log đủ trả lời
+    # "chậm ở đâu" mà không cần mở thêm trace.
+    retrieval_ms: int = 0
+    llm_ms: int = 0
 
 
 class LabAgent:
@@ -29,7 +36,21 @@ class LabAgent:
     @observe(as_type="generation", capture_input=False, capture_output=False)
     def run(self, user_id: str, feature: str, session_id: str, message: str) -> AgentResult:
         started = time.perf_counter()
+
+        # Đo riêng từng bước. Nếu chỉ có latency tổng, một request chậm không
+        # cho biết chậm ở retrieval hay ở LLM — đây chính là span cần để
+        # khoanh vùng root cause.
+        retrieval_started = time.perf_counter()
         docs = retrieve(message)
+        retrieval_ms = int((time.perf_counter() - retrieval_started) * 1000)
+        log.info(
+            "retrieval_completed",
+            service="retrieval",
+            tool_name="mock_rag.retrieve",
+            latency_ms=retrieval_ms,
+            payload={"doc_count": len(docs)},
+        )
+
         langfuse_client = get_langfuse_client()
         prompt = resolve_prompt(
             langfuse_client,
@@ -38,7 +59,18 @@ class LabAgent:
             message=message,
             enabled=tracing_enabled(),
         )
+        llm_started = time.perf_counter()
         response = self.llm.generate(prompt.text)
+        llm_ms = int((time.perf_counter() - llm_started) * 1000)
+        log.info(
+            "llm_completed",
+            service="llm",
+            tool_name=self.model,
+            latency_ms=llm_ms,
+            tokens_in=response.usage.input_tokens,
+            tokens_out=response.usage.output_tokens,
+        )
+
         quality_score = self._heuristic_quality(message, response.text, docs)
         latency_ms = int((time.perf_counter() - started) * 1000)
         cost_usd = self._estimate_cost(response.usage.input_tokens, response.usage.output_tokens)
@@ -88,6 +120,8 @@ class LabAgent:
             tokens_out=response.usage.output_tokens,
             cost_usd=cost_usd,
             quality_score=quality_score,
+            retrieval_ms=retrieval_ms,
+            llm_ms=llm_ms,
         )
 
     def _estimate_cost(self, tokens_in: int, tokens_out: int) -> float:
