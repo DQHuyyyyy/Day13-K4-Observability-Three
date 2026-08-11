@@ -2,8 +2,8 @@
 
 ## 1. Thông tin nhóm
 
-- Tên nhóm: _(điền)_
-- Repository URL: _(điền)_
+- Tên nhóm: Three
+- Repository URL: https://github.com/DQHuyyyyy/Day13-K4-Observability-Three
 - Commit SHA cuối: _(điền sau khi commit)_
 - Thành viên và vai trò:
 
@@ -18,12 +18,12 @@
 - Điểm `validate_logs.py`: **30/100 (baseline, commit 5ba6472) → 100/100 (cuối)**
   - baseline: [`evidence/validate_logs_baseline.txt`](evidence/validate_logs_baseline.txt)
   - cuối: [`evidence/validate_logs_final.txt`](evidence/validate_logs_final.txt)
-  - 103 log record, 27 correlation ID duy nhất, 0 PII leak, 0 record thiếu field bắt buộc, 0 record thiếu enrichment.
+  - 144 log record, 39 correlation ID duy nhất, 0 PII leak, 0 record thiếu field bắt buộc, 0 record thiếu enrichment.
 - Tổng số traces: **59** trên Langfuse (project `My Project`), `auth_check: True`, `/health` trả `tracing_enabled: true`. Trong đó 29 trace có `prompt_source=langfuse` (sau khi tạo prompt) và 30 trace đầu có `prompt_source=local-fallback` (trước khi tạo prompt). Yêu cầu ≥ 10 traces đã đạt.
 - Số PII leak còn lại: **0** (theo detector độc lập trong `scripts/validate_logs.py`).
-- Link/đường dẫn dashboard: contract tại [`config/dashboard.yaml`](../config/dashboard.yaml); kết quả validator tại [`evidence/validate_dashboard.txt`](evidence/validate_dashboard.txt) — `HỢP LỆ: 6/6 panel`. Ảnh dashboard runtime: _(điền)_
+- Link/đường dẫn dashboard: **[`evidence/dashboard.html`](evidence/dashboard.html)** — mở bằng trình duyệt. Dựng bằng [`scripts/build_dashboard.py`](../scripts/build_dashboard.py) từ `data/logs.jsonl`. Contract tại [`config/dashboard.yaml`](../config/dashboard.yaml); kết quả validator tại [`evidence/validate_dashboard.txt`](evidence/validate_dashboard.txt) — `HỢP LỆ: 6/6 panel`.
 
-Số liệu tổng trên toàn bộ 25 request đã ghi log: cost 0.050595 USD, tokens 855 in / 3202 out, quality trung bình 0.856.
+Số liệu tổng trên toàn bộ log đã ghi: 35 request nhận / 34 thành công / 1 lỗi, cost 0.069267 USD, tokens 1044 in / 4409 out, quality trung bình 0.8412.
 
 ## 3. Logging và tracing
 
@@ -77,7 +77,13 @@ Cả bốn dùng **cùng một input**: `"Explain why metrics traces and logs wo
 ## 5. Dashboard, SLO và alerts
 
 - Kết quả `validate_dashboard.py`: `HỢP LỆ: 6/6 panel có trong dashboard contract.` — [`evidence/validate_dashboard.txt`](evidence/validate_dashboard.txt)
-- Evidence dashboard: _(ảnh runtime — điền)_
+- Evidence dashboard: **[`evidence/dashboard.html`](evidence/dashboard.html)**, dựng bằng [`scripts/build_dashboard.py`](../scripts/build_dashboard.py).
+
+  Điểm quan trọng của cách dựng này: script **đọc tên panel, đơn vị, threshold và `time_range_minutes` trực tiếp từ `config/dashboard.yaml`**, không hard-code. Nên dashboard không thể lệch contract mà validator vẫn báo hợp lệ — hai thứ dùng chung một nguồn sự thật. Trang hiển thị đủ time range (60 phút), đơn vị từng panel, threshold/SLO line dạng đường đứt, và một chip trạng thái đạt/vi phạm cho mỗi panel.
+
+  Trong cửa sổ đang chụp, panel **Error rate** báo **vi phạm thật**: 1 lỗi / 35 request = **2.86%**, vượt SLO 2%. Lỗi đó là `RuntimeError: Vector store timeout` sinh ra khi bật incident `tool_fail` để kiểm chứng `error_rate_pct` — log gốc tại [`evidence/log_request_failed.json`](evidence/log_request_failed.json).
+
+  Sáu panel dùng bảng màu đã chạy qua validator ở cả light lẫn dark: latency dùng thang xanh một sắc theo bậc (P50 → P99 sáng sang tối, vì thứ tự phân vị là thứ tự độ lớn chứ không phải bốn danh mục rời rạc), token dùng hai màu categorical, error dùng màu status kèm ký hiệu `!` chứ không chỉ dựa vào màu. Mỗi panel kèm bảng số liệu để đọc được khi không phân biệt được màu.
 - SLO đã chọn và lý do: xem [`config/slo.yaml`](../config/slo.yaml).
   - `latency_p95_ms ≤ 3000`, đạt 99.5% / 28 ngày. **Chọn p95 chứ không phải trung bình**: trong sự cố này p50 vẫn là 156 ms trong khi p95 lên 2667 ms — trung bình sẽ bị phần dưới kéo phẳng và giấu mất đúng nhóm người dùng đang chịu ảnh hưởng.
   - `error_rate_pct ≤ 2`, đạt 99.0%. Cần sàn tối thiểu 20 request mỗi cửa sổ, nếu không 1 lỗi trên 10 request đã thành 10%.
@@ -185,16 +191,22 @@ Lời gọi Langfuse `get_prompt` cũng nằm trên cùng đường chặn đó,
 |---|---|---|---|
 | Huy | `app/middleware.py` (correlation ID, contextvars, response header), `app/logging_config.py` (đăng ký `scrub_event`, quét đệ quy), `app/main.py` (enrichment), `app/pii.py` (passport/địa chỉ VN/số tài khoản, tiền tố hash), `tests/conftest.py` | _(điền)_ | _(điền)_ |
 | Đạt | Cấu hình Langfuse, prompt v1/v2, label & rollback, `flush_tracing()` trong `app/tracing.py` + shutdown handler | _(điền)_ | _(điền)_ |
-| Duy | `config/dashboard.yaml`, `config/slo.yaml`, `config/alert_rules.yaml`, `docs/alerts.md`, span timing trong `app/agent.py`, điều tra challenge | _(điền)_ | _(điền)_ |
+| Duy | `scripts/build_dashboard.py` (dựng 6 panel), `config/slo.yaml`, `config/alert_rules.yaml`, `docs/alerts.md`, span timing trong `app/agent.py`, `error_rate_pct` trong `app/metrics.py` + `tests/test_metrics.py`, điều tra challenge | _(điền)_ | _(điền)_ |
 
 ## 8. Còn thiếu để nộp
 
-1. **Ảnh chụp evidence** — đây là phần duy nhất còn lại. Cần chụp từ Langfuse UI và công cụ dashboard:
-   - dashboard runtime đủ 6 panel, thấy rõ time range, đơn vị và threshold line;
-   - danh sách traces (≥ 10);
+1. **Ảnh chụp từ Langfuse UI** — phần này bắt buộc phải chụp tay vì nằm ngoài repo:
+   - danh sách traces (≥ 10; hiện có 59);
    - một trace waterfall — dùng trace `76b1fe4d75a4364c7575064c575b4974`;
    - danh sách hai prompt version của `day13-chat`;
    - màn hình trước/sau khi chuyển label `production` giữa v2 và v1.
 
-   Đặt tất cả trong `submission/evidence/` và dẫn lại bằng đường dẫn tương đối ở các mục trên.
-2. **Điền mục 1** (tên nhóm, repo URL, commit SHA) và **mục 7** (commit/PR + điều đã học của từng người).
+   Đặt trong `submission/evidence/` và dẫn lại bằng đường dẫn tương đối ở mục 3 và mục 4.
+
+2. **Ảnh dashboard** — mở [`evidence/dashboard.html`](evidence/dashboard.html) bằng trình duyệt rồi chụp. Trang đã hiển thị sẵn tên panel, time range, đơn vị và threshold line theo yêu cầu của `docs/DASHBOARD_SETUP.md`. Muốn dựng lại sau khi có log mới:
+
+   ```bash
+   python scripts/build_dashboard.py
+   ```
+
+3. **Điền mục 7** — commit/PR và điều đã học của từng người, và **commit SHA cuối** ở mục 1.

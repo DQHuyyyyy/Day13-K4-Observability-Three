@@ -1,0 +1,184 @@
+<!doctype html>
+<html lang="vi"><head><meta charset="utf-8"/>
+<meta name="viewport" content="width=device-width,initial-scale=1"/>
+<title>Day 13 AI Observability</title>
+<style>
+:root {
+  color-scheme: light;
+  --page: #f9f9f7; --surface: #fcfcfb; --ink: #0b0b0b; --ink-2: #52514e;
+  --muted: #898781; --grid: #e1e0d9; --axis: #c3c2b7; --ring: rgba(11,11,11,.10);
+  --seq-1: #86b6ef; --seq-2: #2a78d6; --seq-3: #104281;
+  --cat-1: #2a78d6; --cat-2: #eb6834;
+  --status-good: #0ca30c; --status-critical: #d03b3b;
+}
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) {
+    color-scheme: dark;
+    --page: #0d0d0d; --surface: #1a1a19; --ink: #fff; --ink-2: #c3c2b7;
+    --muted: #898781; --grid: #2c2c2a; --axis: #383835; --ring: rgba(255,255,255,.10);
+    --seq-1: #b7d3f6; --seq-2: #5598e7; --seq-3: #1c5cab;
+    --cat-1: #3987e5; --cat-2: #d95926;
+  }
+}
+:root[data-theme="dark"] {
+  color-scheme: dark;
+  --page: #0d0d0d; --surface: #1a1a19; --ink: #fff; --ink-2: #c3c2b7;
+  --muted: #898781; --grid: #2c2c2a; --axis: #383835; --ring: rgba(255,255,255,.10);
+  --seq-1: #b7d3f6; --seq-2: #5598e7; --seq-3: #1c5cab;
+  --cat-1: #3987e5; --cat-2: #d95926;
+}
+* { box-sizing: border-box; }
+body { margin:0; padding:clamp(1rem,3vw,2.5rem); background:var(--page); color:var(--ink-2);
+  font-family: system-ui,-apple-system,"Segoe UI",sans-serif; font-size:15px; line-height:1.55; }
+.wrap { max-width:78rem; margin:0 auto; display:flex; flex-direction:column; gap:1.5rem; }
+header.top { display:flex; flex-wrap:wrap; gap:.75rem 2rem; align-items:baseline;
+  border-bottom:1px solid var(--grid); padding-bottom:1rem; }
+header.top h1 { margin:0; font-size:1.5rem; color:var(--ink); font-weight:650; letter-spacing:-.01em; }
+.chrome { display:flex; flex-wrap:wrap; gap:.4rem 1.5rem; font-size:.8125rem; color:var(--muted);
+  font-variant-numeric:tabular-nums; }
+.chrome b { color:var(--ink-2); font-weight:600; }
+.grid-panels { display:grid; gap:1rem; grid-template-columns:1fr; }
+@media (min-width:64rem) { .grid-panels { grid-template-columns:1fr 1fr; } }
+.panel { background:var(--surface); border:1px solid var(--ring); border-radius:6px;
+  padding:1rem 1.15rem 1.15rem; display:flex; flex-direction:column; gap:.6rem; }
+.panel-head { display:flex; justify-content:space-between; align-items:flex-start; gap:1rem; }
+.panel h2 { margin:0; font-size:1rem; color:var(--ink); font-weight:650; }
+.meta { margin:.15rem 0 0; font-size:.75rem; color:var(--muted); font-variant-numeric:tabular-nums; }
+.meta code { font-family:ui-monospace,Menlo,Consolas,monospace; font-size:.9em; }
+.chip { display:inline-flex; align-items:center; gap:.35rem; white-space:nowrap;
+  font-size:.75rem; font-weight:600; padding:.2rem .5rem; border-radius:3px;
+  border:1px solid currentColor; font-variant-numeric:tabular-nums; }
+.chip.ok { color:var(--status-good); }
+.chip.bad { color:var(--status-critical); }
+.chip-mark { font-weight:700; }
+.headline { display:flex; flex-direction:column; gap:.1rem; }
+.headline .value { font-size:1.75rem; color:var(--ink); font-weight:600; line-height:1.1; }
+.headline .unit { font-size:.9rem; color:var(--muted); font-weight:500; margin-left:.25rem; }
+.headline .sub { font-size:.8125rem; color:var(--muted); }
+.legend { display:flex; flex-wrap:wrap; gap:.35rem 1rem; font-size:.75rem; color:var(--ink-2); }
+.lg { display:inline-flex; align-items:center; gap:.35rem; }
+.sw { width:11px; height:3px; border-radius:2px; display:inline-block; }
+.chart svg { width:100%; height:auto; display:block; }
+.grid { stroke:var(--grid); stroke-width:1; }
+.axis { stroke:var(--axis); stroke-width:1; }
+.tick { fill:var(--muted); font-size:9px; font-family:system-ui,sans-serif;
+  font-variant-numeric:tabular-nums; }
+.thr { stroke:var(--status-critical); stroke-width:1.5; stroke-dasharray:5 4; opacity:.85; }
+.thr-label { fill:var(--status-critical); font-size:9px; font-weight:600;
+  font-family:system-ui,sans-serif; }
+.line { fill:none; stroke-width:2; stroke-linecap:round; stroke-linejoin:round; }
+.dot { stroke:var(--surface); stroke-width:2; }
+.bar { stroke:var(--surface); stroke-width:0; }
+.tbl { margin-top:.2rem; }
+.tbl summary { cursor:pointer; font-size:.75rem; color:var(--muted); }
+.tbl summary:focus-visible { outline:2px solid var(--seq-2); outline-offset:2px; }
+.scroll { overflow-x:auto; margin-top:.5rem; }
+table { border-collapse:collapse; width:100%; font-size:.75rem;
+  font-variant-numeric:tabular-nums; }
+th { text-align:left; color:var(--muted); font-weight:600; padding:.3rem .5rem;
+  border-bottom:1px solid var(--axis); white-space:nowrap; }
+td { padding:.3rem .5rem; border-bottom:1px solid var(--grid); white-space:nowrap; }
+footer { font-size:.75rem; color:var(--muted); border-top:1px solid var(--grid); padding-top:.9rem; }
+</style></head><body><div class="wrap">
+<header class="top">
+  <h1>Day 13 AI Observability</h1>
+  <div class="chrome">
+    <span>time range <b>60 phút</b></span>
+    <span>2026-08-11 08:36 → 08:54</span>
+    <span>refresh <b>30s</b></span>
+    <span>nguồn <b>data/logs.jsonl</b></span>
+  </div>
+</header>
+<div class="grid-panels">
+<section class="panel">
+  <header class="panel-head">
+    <div class="panel-id">
+      <h2>Latency percentiles</h2>
+      <p class="meta">id <code>latency</code> · đơn vị <b>ms</b>
+         · threshold <b>p95 ≤ 3000</b></p>
+    </div>
+    <span class="chip ok"><span class="chip-mark" aria-hidden="true">✓</span>P95 2659 ms</span>
+  </header>
+  <div class="headline"><span class="value">2659<span class="unit">ms</span></span><span class="sub">P50 155 · P95 2659 · P99 2663 ms trên toàn cửa sổ</span></div>
+  <div class="legend"><span class="lg"><span class="sw" style="background:var(--seq-1)"></span>P50</span><span class="lg"><span class="sw" style="background:var(--seq-2)"></span>P95</span><span class="lg"><span class="sw" style="background:var(--seq-3)"></span>P99</span></div>
+  <div class="chart"><svg viewBox="0 0 560 190" role="img" preserveAspectRatio="xMidYMid meet"><line class="grid" x1="52" y1="164.0" x2="546" y2="164.0"/><text class="tick" x="45" y="167.5" text-anchor="end">0</text><line class="grid" x1="52" y1="126.5" x2="546" y2="126.5"/><text class="tick" x="45" y="130.0" text-anchor="end">885</text><line class="grid" x1="52" y1="89.0" x2="546" y2="89.0"/><text class="tick" x="45" y="92.5" text-anchor="end">1,770</text><line class="grid" x1="52" y1="51.5" x2="546" y2="51.5"/><text class="tick" x="45" y="55.0" text-anchor="end">2,655</text><line class="grid" x1="52" y1="14.0" x2="546" y2="14.0"/><text class="tick" x="45" y="17.5" text-anchor="end">3,540</text><line class="axis" x1="52" y1="164" x2="546" y2="164"/><text class="tick" x="52" y="182" text-anchor="start">08:36</text><text class="tick" x="546" y="182" text-anchor="end">08:54</text><line class="thr" x1="52" y1="36.9" x2="546" y2="36.9"/><text class="thr-label" x="546" y="31.9" text-anchor="end">SLO 3000 ms</text><path class="line" style="stroke:var(--seq-1)" d="M52.0,157.6 L79.4,51.6"/><circle class="dot" style="fill:var(--seq-1)" cx="52.0" cy="157.6" r="4"><title>08:36 — 152 ms</title></circle><circle class="dot" style="fill:var(--seq-1)" cx="79.4" cy="51.6" r="4"><title>08:37 — 2,653 ms</title></circle><circle class="dot" style="fill:var(--seq-1)" cx="546.0" cy="157.6" r="4"><title>08:54 — 152 ms</title></circle><path class="line" style="stroke:var(--seq-2)" d="M52.0,51.2 L79.4,51.3"/><circle class="dot" style="fill:var(--seq-2)" cx="52.0" cy="51.2" r="4"><title>08:36 — 2,663 ms</title></circle><circle class="dot" style="fill:var(--seq-2)" cx="79.4" cy="51.3" r="4"><title>08:37 — 2,659 ms</title></circle><circle class="dot" style="fill:var(--seq-2)" cx="546.0" cy="119.4" r="4"><title>08:54 — 1,053 ms</title></circle><path class="line" style="stroke:var(--seq-3)" d="M52.0,51.2 L79.4,51.3"/><circle class="dot" style="fill:var(--seq-3)" cx="52.0" cy="51.2" r="4"><title>08:36 — 2,663 ms</title></circle><circle class="dot" style="fill:var(--seq-3)" cx="79.4" cy="51.3" r="4"><title>08:37 — 2,659 ms</title></circle><circle class="dot" style="fill:var(--seq-3)" cx="546.0" cy="119.4" r="4"><title>08:54 — 1,053 ms</title></circle></svg></div>
+  <details class="tbl"><summary>Xem dạng bảng</summary><div class="scroll"><table><thead><tr><th>Phút</th><th>P50 (ms)</th><th>P95 (ms)</th><th>P99 (ms)</th></tr></thead><tbody><tr><td>08:36</td><td>152</td><td>2663</td><td>2663</td></tr><tr><td>08:37</td><td>2653</td><td>2659</td><td>2659</td></tr><tr><td>08:54</td><td>152</td><td>1053</td><td>1053</td></tr></tbody></table></div></details>
+</section>
+<section class="panel">
+  <header class="panel-head">
+    <div class="panel-id">
+      <h2>Request traffic</h2>
+      <p class="meta">id <code>traffic</code> · đơn vị <b>requests_per_minute</b>
+         · threshold <b>rate_per_minute ≥ 1</b></p>
+    </div>
+    <span class="chip ok"><span class="chip-mark" aria-hidden="true">✓</span>11.67 req/phút</span>
+  </header>
+  <div class="headline"><span class="value">35<span class="unit">req</span></span><span class="sub">11.67 request/phút trên 3 phút có traffic</span></div>
+  
+  <div class="chart"><svg viewBox="0 0 560 190" role="img" preserveAspectRatio="xMidYMid meet"><line class="grid" x1="52" y1="164.0" x2="546" y2="164.0"/><text class="tick" x="45" y="167.5" text-anchor="end">0</text><line class="grid" x1="52" y1="126.5" x2="546" y2="126.5"/><text class="tick" x="45" y="130.0" text-anchor="end">3.83</text><line class="grid" x1="52" y1="89.0" x2="546" y2="89.0"/><text class="tick" x="45" y="92.5" text-anchor="end">7.67</text><line class="grid" x1="52" y1="51.5" x2="546" y2="51.5"/><text class="tick" x="45" y="55.0" text-anchor="end">11.50</text><line class="grid" x1="52" y1="14.0" x2="546" y2="14.0"/><text class="tick" x="45" y="17.5" text-anchor="end">15.34</text><line class="axis" x1="52" y1="164" x2="546" y2="164"/><text class="tick" x="52" y="182" text-anchor="start">08:36</text><text class="tick" x="546" y="182" text-anchor="end">08:54</text><line class="thr" x1="52" y1="154.2" x2="546" y2="154.2"/><text class="thr-label" x="546" y="149.2" text-anchor="end">tối thiểu 1/phút</text><rect class="bar" style="fill:var(--seq-2)" x="58.0" y="46.7" width="14.0" height="117.3" rx="2"><title>08:36 — 12 requests_per_minute</title></rect><rect class="bar" style="fill:var(--seq-2)" x="84.0" y="36.9" width="14.0" height="127.1" rx="2"><title>08:37 — 13 requests_per_minute</title></rect><rect class="bar" style="fill:var(--seq-2)" x="526.0" y="66.2" width="14.0" height="97.8" rx="2"><title>08:54 — 10 requests_per_minute</title></rect></svg></div>
+  <details class="tbl"><summary>Xem dạng bảng</summary><div class="scroll"><table><thead><tr><th>Phút</th><th>Request nhận</th></tr></thead><tbody><tr><td>08:36</td><td>12</td></tr><tr><td>08:37</td><td>13</td></tr><tr><td>08:54</td><td>10</td></tr></tbody></table></div></details>
+</section>
+<section class="panel">
+  <header class="panel-head">
+    <div class="panel-id">
+      <h2>Error rate and breakdown</h2>
+      <p class="meta">id <code>errors</code> · đơn vị <b>percent</b>
+         · threshold <b>error_rate_pct ≤ 2</b></p>
+    </div>
+    <span class="chip bad"><span class="chip-mark" aria-hidden="true">!</span>2.86%</span>
+  </header>
+  <div class="headline"><span class="value">2.86<span class="unit">%</span></span><span class="sub">1 lỗi / 35 request đã nhận</span></div>
+  
+  <div class="chart"><svg viewBox="0 0 560 190" role="img" preserveAspectRatio="xMidYMid meet"><line class="grid" x1="52" y1="164.0" x2="546" y2="164.0"/><text class="tick" x="45" y="167.5" text-anchor="end">0</text><line class="grid" x1="52" y1="126.5" x2="546" y2="126.5"/><text class="tick" x="45" y="130.0" text-anchor="end">2.95</text><line class="grid" x1="52" y1="89.0" x2="546" y2="89.0"/><text class="tick" x="45" y="92.5" text-anchor="end">5.90</text><line class="grid" x1="52" y1="51.5" x2="546" y2="51.5"/><text class="tick" x="45" y="55.0" text-anchor="end">8.85</text><line class="grid" x1="52" y1="14.0" x2="546" y2="14.0"/><text class="tick" x="45" y="17.5" text-anchor="end">11.80</text><line class="axis" x1="52" y1="164" x2="546" y2="164"/><text class="tick" x="52" y="182" text-anchor="start">08:36</text><text class="tick" x="546" y="182" text-anchor="end">08:54</text><line class="thr" x1="52" y1="138.6" x2="546" y2="138.6"/><text class="thr-label" x="546" y="133.6" text-anchor="end">SLO 2%</text><rect class="bar" style="fill:var(--status-critical)" x="526.0" y="36.9" width="14.0" height="127.1" rx="2"><title>08:54 — 10 percent</title></rect></svg></div>
+  <details class="tbl"><summary>Xem dạng bảng</summary><div class="scroll"><table><thead><tr><th>Phút</th><th>Nhận</th><th>Lỗi</th><th>Error rate (%)</th></tr></thead><tbody><tr><td>08:36</td><td>12</td><td>0</td><td>0.00</td></tr><tr><td>08:37</td><td>13</td><td>0</td><td>0.00</td></tr><tr><td>08:54</td><td>10</td><td>1</td><td>10.00</td></tr><tr><td>breakdown</td><td></td><td>RuntimeError</td><td>1</td></tr></tbody></table></div></details>
+</section>
+<section class="panel">
+  <header class="panel-head">
+    <div class="panel-id">
+      <h2>Cost over time</h2>
+      <p class="meta">id <code>cost</code> · đơn vị <b>usd</b>
+         · threshold <b>total ≤ 2.5</b></p>
+    </div>
+    <span class="chip ok"><span class="chip-mark" aria-hidden="true">✓</span>0.0693 USD</span>
+  </header>
+  <div class="headline"><span class="value">0.0693<span class="unit">USD</span></span><span class="sub">tổng chi phí trong cửa sổ, ngân sách 2.5 USD</span></div>
+  
+  <div class="chart"><svg viewBox="0 0 560 190" role="img" preserveAspectRatio="xMidYMid meet"><line class="grid" x1="52" y1="164.0" x2="546" y2="164.0"/><text class="tick" x="45" y="167.5" text-anchor="end">0.0000</text><line class="grid" x1="52" y1="126.5" x2="546" y2="126.5"/><text class="tick" x="45" y="130.0" text-anchor="end">0.2950</text><line class="grid" x1="52" y1="89.0" x2="546" y2="89.0"/><text class="tick" x="45" y="92.5" text-anchor="end">0.5900</text><line class="grid" x1="52" y1="51.5" x2="546" y2="51.5"/><text class="tick" x="45" y="55.0" text-anchor="end">0.8850</text><line class="grid" x1="52" y1="14.0" x2="546" y2="14.0"/><text class="tick" x="45" y="17.5" text-anchor="end">1.1800</text><line class="axis" x1="52" y1="164" x2="546" y2="164"/><text class="tick" x="52" y="182" text-anchor="start">08:36</text><text class="tick" x="546" y="182" text-anchor="end">08:54</text><path class="line" style="stroke:var(--seq-2)" d="M52.0,161.2 L79.4,160.4"/><circle class="dot" style="fill:var(--seq-2)" cx="52.0" cy="161.2" r="4"><title>08:36 — 0.0222 usd</title></circle><circle class="dot" style="fill:var(--seq-2)" cx="79.4" cy="160.4" r="4"><title>08:37 — 0.0281 usd</title></circle><circle class="dot" style="fill:var(--seq-2)" cx="546.0" cy="161.6" r="4"><title>08:54 — 0.0189 usd</title></circle></svg></div>
+  <details class="tbl"><summary>Xem dạng bảng</summary><div class="scroll"><table><thead><tr><th>Phút</th><th>Chi phí (USD)</th></tr></thead><tbody><tr><td>08:36</td><td>0.022230</td></tr><tr><td>08:37</td><td>0.028095</td></tr><tr><td>08:54</td><td>0.018942</td></tr></tbody></table></div></details>
+</section>
+<section class="panel">
+  <header class="panel-head">
+    <div class="panel-id">
+      <h2>Input and output tokens</h2>
+      <p class="meta">id <code>tokens</code> · đơn vị <b>tokens</b>
+         · threshold <b>sum_by_field ≤ 50000</b></p>
+    </div>
+    <span class="chip ok"><span class="chip-mark" aria-hidden="true">✓</span>tối đa 4,409 token</span>
+  </header>
+  <div class="headline"><span class="value">1,044<span class="unit">in</span> · 4,409<span class="unit">out</span></span><span class="sub">tổng theo từng field, trần 50,000 token mỗi field</span></div>
+  <div class="legend"><span class="lg"><span class="sw" style="background:var(--cat-1)"></span>tokens_in</span><span class="lg"><span class="sw" style="background:var(--cat-2)"></span>tokens_out</span></div>
+  <div class="chart"><svg viewBox="0 0 560 190" role="img" preserveAspectRatio="xMidYMid meet"><line class="grid" x1="52" y1="164.0" x2="546" y2="164.0"/><text class="tick" x="45" y="167.5" text-anchor="end">0</text><line class="grid" x1="52" y1="126.5" x2="546" y2="126.5"/><text class="tick" x="45" y="130.0" text-anchor="end">523.62</text><line class="grid" x1="52" y1="89.0" x2="546" y2="89.0"/><text class="tick" x="45" y="92.5" text-anchor="end">1,047</text><line class="grid" x1="52" y1="51.5" x2="546" y2="51.5"/><text class="tick" x="45" y="55.0" text-anchor="end">1,571</text><line class="grid" x1="52" y1="14.0" x2="546" y2="14.0"/><text class="tick" x="45" y="17.5" text-anchor="end">2,094</text><line class="axis" x1="52" y1="164" x2="546" y2="164"/><text class="tick" x="52" y="182" text-anchor="start">08:36</text><text class="tick" x="546" y="182" text-anchor="end">08:54</text><rect class="bar" style="fill:var(--cat-1)" x="57.9" y="137.9" width="6.1" height="26.1" rx="2"><title>08:36 — 365 tokens</title></rect><rect class="bar" style="fill:var(--cat-1)" x="83.9" y="128.9" width="6.1" height="35.1" rx="2"><title>08:37 — 490 tokens</title></rect><rect class="bar" style="fill:var(--cat-1)" x="525.9" y="150.5" width="6.1" height="13.5" rx="2"><title>08:54 — 189 tokens</title></rect><rect class="bar" style="fill:var(--cat-2)" x="66.0" y="63.1" width="6.1" height="100.9" rx="2"><title>08:36 — 1,409 tokens</title></rect><rect class="bar" style="fill:var(--cat-2)" x="92.0" y="36.9" width="6.1" height="127.1" rx="2"><title>08:37 — 1,775 tokens</title></rect><rect class="bar" style="fill:var(--cat-2)" x="534.0" y="76.3" width="6.1" height="87.7" rx="2"><title>08:54 — 1,225 tokens</title></rect></svg></div>
+  <details class="tbl"><summary>Xem dạng bảng</summary><div class="scroll"><table><thead><tr><th>Phút</th><th>tokens_in</th><th>tokens_out</th></tr></thead><tbody><tr><td>08:36</td><td>365</td><td>1409</td></tr><tr><td>08:37</td><td>490</td><td>1775</td></tr><tr><td>08:54</td><td>189</td><td>1225</td></tr></tbody></table></div></details>
+</section>
+<section class="panel">
+  <header class="panel-head">
+    <div class="panel-id">
+      <h2>Quality proxy</h2>
+      <p class="meta">id <code>quality</code> · đơn vị <b>score_0_to_1</b>
+         · threshold <b>mean ≥ 0.75</b></p>
+    </div>
+    <span class="chip ok"><span class="chip-mark" aria-hidden="true">✓</span>trung bình 0.84</span>
+  </header>
+  <div class="headline"><span class="value">0.84<span class="unit">/ 1.0</span></span><span class="sub">quality proxy trung bình, sàn 0.75</span></div>
+  
+  <div class="chart"><svg viewBox="0 0 560 190" role="img" preserveAspectRatio="xMidYMid meet"><line class="grid" x1="52" y1="164.0" x2="546" y2="164.0"/><text class="tick" x="45" y="167.5" text-anchor="end">0.00</text><line class="grid" x1="52" y1="126.5" x2="546" y2="126.5"/><text class="tick" x="45" y="130.0" text-anchor="end">0.29</text><line class="grid" x1="52" y1="89.0" x2="546" y2="89.0"/><text class="tick" x="45" y="92.5" text-anchor="end">0.59</text><line class="grid" x1="52" y1="51.5" x2="546" y2="51.5"/><text class="tick" x="45" y="55.0" text-anchor="end">0.89</text><line class="grid" x1="52" y1="14.0" x2="546" y2="14.0"/><text class="tick" x="45" y="17.5" text-anchor="end">1.18</text><line class="axis" x1="52" y1="164" x2="546" y2="164"/><text class="tick" x="52" y="182" text-anchor="start">08:36</text><text class="tick" x="546" y="182" text-anchor="end">08:54</text><line class="thr" x1="52" y1="68.7" x2="546" y2="68.7"/><text class="thr-label" x="546" y="63.7" text-anchor="end">sàn 0.75</text><path class="line" style="stroke:var(--seq-2)" d="M52.0,53.1 L79.4,56.9"/><circle class="dot" style="fill:var(--seq-2)" cx="52.0" cy="53.1" r="4"><title>08:36 — 0.87 score_0_to_1</title></circle><circle class="dot" style="fill:var(--seq-2)" cx="79.4" cy="56.9" r="4"><title>08:37 — 0.84 score_0_to_1</title></circle><circle class="dot" style="fill:var(--seq-2)" cx="546.0" cy="62.3" r="4"><title>08:54 — 0.80 score_0_to_1</title></circle></svg></div>
+  <details class="tbl"><summary>Xem dạng bảng</summary><div class="scroll"><table><thead><tr><th>Phút</th><th>Quality trung bình</th></tr></thead><tbody><tr><td>08:36</td><td>0.87</td></tr><tr><td>08:37</td><td>0.84</td></tr><tr><td>08:54</td><td>0.80</td></tr></tbody></table></div></details>
+</section>
+</div>
+<footer>
+  Sáu panel dựng bằng <code>scripts/build_dashboard.py</code>. Tên panel, đơn vị, threshold
+  và cửa sổ thời gian đọc trực tiếp từ <code>config/dashboard.yaml</code> — không hard-code,
+  nên ảnh chụp trang này khớp đúng contract mà <code>scripts/validate_dashboard.py</code> kiểm tra.
+  Đường đứt đỏ là threshold/SLO line. Di chuột lên từng điểm hoặc cột để xem giá trị.
+</footer>
+</div></body></html>

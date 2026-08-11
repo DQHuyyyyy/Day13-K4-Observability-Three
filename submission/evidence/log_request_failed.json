@@ -1,0 +1,19 @@
+[
+  {
+    "service": "api",
+    "error_type": "RuntimeError",
+    "payload": {
+      "detail": "Vector store timeout",
+      "message_preview": "test"
+    },
+    "event": "request_failed",
+    "feature": "qa",
+    "correlation_id": "req-08d69752",
+    "env": "dev",
+    "user_id_hash": "uh_0bfe935e70c3",
+    "model": "claude-sonnet-4-5",
+    "session_id": "err-check",
+    "level": "error",
+    "ts": "2026-08-11T08:54:43.416643Z"
+  }
+]
