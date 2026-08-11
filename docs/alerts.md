@@ -16,7 +16,7 @@ Ba alert dưới đây bám theo bốn SLI trong [`config/slo.yaml`](../config/s
   2. Lọc `event=="response_sent"` trong log, so `payload.retrieval_ms` với `payload.llm_ms` để biết span nào chiếm phần lớn latency.
   3. Mở trace của một `correlation_id` chậm nhất và xác nhận đúng span đó dài bất thường.
 - Mitigation tạm thời: đặt timeout cứng cho bước retrieval và trả lời bằng fallback không có context khi timeout, đổi lấy chất lượng thấp hơn nhưng giữ được latency.
-- Owner: Duy
+- Owner: Dương Văn Duy
 
 ## Alert 2
 
@@ -30,7 +30,7 @@ Ba alert dưới đây bám theo bốn SLI trong [`config/slo.yaml`](../config/s
   2. Lấy `correlation_id` của một `request_failed` và đọc `payload.detail`.
   3. Kiểm tra `feature` và `session_id` của các request lỗi: nếu tập trung vào một feature thì phạm vi ảnh hưởng hẹp hơn.
 - Mitigation tạm thời: nếu lỗi đến từ vector store, cho phép trả lời không có RAG context thay vì fail toàn bộ request.
-- Owner: Huy
+- Owner: Dương Quang Huy
 
 ## Alert 3
 
@@ -44,7 +44,7 @@ Ba alert dưới đây bám theo bốn SLI trong [`config/slo.yaml`](../config/s
   2. Mở panel **Input and output tokens**: `tokens_out` tăng trong khi `tokens_in` đứng yên nghĩa là model sinh dài hơn, thường do đổi prompt hoặc thiếu giới hạn độ dài.
   3. Đối chiếu thời điểm tăng với `prompt_version` / `prompt_label` trên trace — nếu trùng lúc đổi label thì rollback prompt là hành động đầu tiên.
 - Mitigation tạm thời: rollback prompt label về version trước, hoặc siết `max_tokens`.
-- Owner: Đạt
+- Owner: Nguyễn Tiến Đạt
 
 ## Vì sao không đặt alert cho quality proxy
 

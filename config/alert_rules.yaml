@@ -3,17 +3,17 @@ alerts:
     severity: P2
     condition: 'p95(latency_ms) WHERE event=="response_sent" > 3000 for 5m'
     type: symptom-based
-    owner: Duy
+    owner: Dương Văn Duy
     runbook: docs/alerts.md#alert-1
   - name: chat_error_rate_breach
     severity: P1
     condition: 'count(event=="request_failed") / count(event=="request_received") * 100 > 2 for 5m'
     type: symptom-based
-    owner: Huy
+    owner: Dương Quang Huy
     runbook: docs/alerts.md#alert-2
   - name: chat_cost_per_request_spike
     severity: P3
     condition: 'sum(cost_usd) by 1m > 2x median(1h) for 15m WHILE rate(request_received) khong tang qua 20%'
     type: symptom-based
-    owner: Đạt
+    owner: Nguyễn Tiến Đạt
     runbook: docs/alerts.md#alert-3
