@@ -1,0 +1,36 @@
+# Evidence dieu tra challenge day13-k4-observability-v1
+
+Nguon: data/logs.jsonl (log that tu scripts/load_test.py --challenge)
+
+## Phan ra latency theo span
+
+correlation_id  session                retrieval_ms  llm_ms  total_ms         pha
+req-1f5cb362    k4-challenge-s03               2500     156      2663    INCIDENT
+req-17cdd619    k4-challenge-s02               2500     152      2659    INCIDENT
+req-d845dd9f    k4-challenge-s04               2500     150      2656    INCIDENT
+req-8d7155d1    k4-challenge-s05               2500     151      2655    INCIDENT
+req-1be8240e    k4-challenge-s01               2500     150      2654    INCIDENT
+req-410a67fd    k4-challenge-s04               2500     150      2654    INCIDENT
+req-7f03bdbe    k4-challenge-s01               2500     150      2653    INCIDENT
+req-814b2637    k4-challenge-s05               2500     150      2653    INCIDENT
+req-77474e03    k4-challenge-s03               2500     150      2653    INCIDENT
+req-3777d20f    k4-challenge-s02               2500     150      2652    INCIDENT
+req-00709afc    k4-challenge-s02                  0     150       158   recovered
+req-904198fa    k4-challenge-s05                  0     154       157   recovered
+req-f88bf51f    k4-challenge-s01                  0     150       155   recovered
+req-3df0cfaf    k4-challenge-s03                  0     150       151   recovered
+req-f34e0686    k4-challenge-s04                  0     150       151   recovered
+
+Pha INCIDENT (10 request): retrieval_ms=2500 tren MOI request, chiem 94.2% tong latency. LLM span khong doi.
+Pha recovery (5 request): retrieval_ms ve 0.
+
+## Percentile theo pha
+
+Healthy (sample_queries)     n=10   p50=152      p95=1069     p99=1069    
+Challenge INCIDENT           n=10   p50=2654     p95=2663     p99=2663    
+Challenge recovery           n=5    p50=155      p95=158      p99=158     
+
+## Su kien dieu khien incident
+
+2026-08-11T08:36:54.661503Z  incident_enabled   rag_slow
+2026-08-11T08:37:24.201169Z  incident_disabled  rag_slow

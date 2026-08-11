@@ -4,13 +4,25 @@ slis:
   latency_p95_ms:
     objective: 3000
     target: 99.5
-    note: Replace with your group's target
+    note: >-
+      Do tren event response_sent. Chon p95 thay vi trung binh vi trong su co
+      rag_slow, p50 giu nguyen 156ms trong khi p95 len 2667ms — trung binh se
+      lam phang dung phan duoi ma nguoi dung cam nhan duoc.
   error_rate_pct:
     objective: 2
     target: 99.0
+    note: >-
+      count(request_failed) / count(request_received). Can san toi thieu 20
+      request moi cua so danh gia, neu khong 1 loi tren 10 request thanh 10%.
   daily_cost_usd:
     objective: 2.5
     target: 100.0
+    note: >-
+      Ngan sach cung cho moi truong lab. Theo doi kem tokens_out: chi phi tang
+      khi traffic dung yen la hoi quy don gia, khong phai tang truong.
   quality_score_avg:
     objective: 0.75
     target: 95.0
+    note: >-
+      Heuristic proxy tinh trong app/agent.py, chi dung de theo doi xu huong.
+      Khong gan alert - xem docs/alerts.md.

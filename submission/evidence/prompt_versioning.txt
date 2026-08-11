@@ -1,0 +1,42 @@
+Evidence prompt versioning — Langfuse project "My Project"
+Prompt: day13-chat | versions: [1, 2]
+
+Version 1 (labels: baseline, production sau rollback)
+    Feature={{feature}}
+    Docs={{docs}}
+    Question={{message}}
+
+Version 2 (label: candidate)
+    Feature={{feature}}
+    Docs={{docs}}
+    Question={{message}}
+    Answer in at most 3 sentences. Cite the retrieved context.
+
+Cung MOT input duoc chay qua tung label. Moi phase chay tren mot server rieng
+vi LANGFUSE_PROMPT_LABEL doc tu bien moi truong luc resolve prompt.
+Input: "Explain why metrics traces and logs work together." (feature=monitoring)
+
+session                     trace_id                          label       ver  source
+------------------------------------------------------------------------------------------------
+pv-baseline                 76b1fe4d75a4364c7575064c575b4974  baseline    1    langfuse
+pv-candidate                bc2fcd3b785704628fc6b7c2aaf68a03  candidate   2    langfuse
+pv-production-v2            77e0327f594f97133919db20208f18b2  production  2    langfuse
+pv-production-rollback-v1   1defc045c57bf3dbadb70aa679575011  production  1    langfuse
+
+correlation_id tuong ung: req-0e83f16d, req-7e7365f2, req-aebc33c6, req-25fede7e
+
+DIEN GIAI
+
+1. Hai version ton tai song song, phan biet bang label chu khong phai bang
+   viec sua file. Doi label la thao tac tren Langfuse, khong can deploy lai code.
+
+2. Bang chung ROLLBACK nam o hai dong cuoi, doc theo thu tu thoi gian:
+     - pv-production-v2          : label 'production' -> version 2, trace ghi ver=2
+     - pv-production-rollback-v1 : label 'production' -> version 1, trace ghi ver=1
+   Cung mot label 'production', hai trace, hai version khac nhau. Day la thu
+   chung minh he thong truy xuat duoc version dang chay va quay lui duoc.
+
+3. Truoc khi prompt duoc tao tren Langfuse, ca 30 trace dau tien deu ghi
+   prompt_source=local-fallback / prompt_version=local-v1. App KHONG gia vo da
+   lay duoc prompt managed — do la hanh vi dung, va no cho phep phat hien ngay
+   rang prompt chua ton tai thay vi im lang chay template local.
