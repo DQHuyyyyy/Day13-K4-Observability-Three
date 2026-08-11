@@ -28,6 +28,14 @@ def record_error(error_type: str) -> None:
 
 
 
+def error_rate_pct() -> float:
+    total_errors = sum(ERRORS.values())
+    if TRAFFIC == 0:
+        return 100.0 if total_errors else 0.0
+    return round((total_errors / TRAFFIC) * 100, 4)
+
+
+
 def percentile(values: list[int], p: int) -> float:
     if not values:
         return 0.0
